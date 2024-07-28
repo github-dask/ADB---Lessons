@@ -48,30 +48,38 @@ display(dffs2.limit(10))
 
 # COMMAND ----------
 
-#Filtering and grouping dataframes
+# DBTITLE 1,Projection & Selection
 pricelist_df = dffs.select("ProductID", "ListPrice") # or dffs["ProductID", "ListPrice"]
 display(pricelist_df.limit(15))
 display(pricelist_df.count())
 
 # COMMAND ----------
 
+# DBTITLE 1,where clause
 #chain methods together to perform a series of manipulations that results in a transformed dataframe.
 bikes_df = dffs["ProductName", "ListPrice"].where((dffs["Category"]=="Mountain Bikes") | (dffs["Category"]=="Road Bikes"))
 display(bikes_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,group and aggregate data
 #To group and aggregate data, you can use the groupBy method and aggregate functions.
 counts_df = dffs.select("ProductID", "Category").groupBy("Category").count()
 display(counts_df)
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC Specifying a dataframe schema while working with DBFS files
+# DBTITLE 1,Same as above through direct SQL
+# MAGIC %sql
+# MAGIC
+# MAGIC SELECT Category, COUNT(ProductID) AS ProductCount
+# MAGIC FROM products
+# MAGIC GROUP BY Category
+# MAGIC ORDER BY Category
 
 # COMMAND ----------
 
+# DBTITLE 1,dataframe schema while working with DBFS files
 from pyspark.sql.types import *
 from pyspark.sql.functions import *
 
@@ -90,9 +98,25 @@ display(dfs)
 
 # COMMAND ----------
 
+# DBTITLE 1,Creating a temporary View from DataFrame
 dffs2.createOrReplaceTempView("products1")
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC select * from products1
+
+# COMMAND ----------
+
+# DBTITLE 1,Spark Catalogue SQL
+#spark.catalog.createTable()
+#saveAsTable()
+# spark.catalog.createExternalTable() 
+
+# COMMAND ----------
+
+# DBTITLE 1,Spark SQL API
+bikes_df = spark.sql("SELECT ProductID, ProductName, ListPrice \
+                      FROM products \
+                      WHERE Category IN ('Mountain Bikes', 'Road Bikes')")
+display(bikes_df)
