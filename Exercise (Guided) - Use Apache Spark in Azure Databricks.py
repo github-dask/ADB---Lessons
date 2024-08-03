@@ -2,6 +2,7 @@
 # MAGIC %md
 # MAGIC # Follow steps from the MS Learning Exercise
 # MAGIC https://microsoftlearning.github.io/mslearn-databricks/Instructions/Exercises/02-Use-Spark-in-Azure-Databricks.html
+# MAGIC https://microsoftlearning.github.io/mslearn-databricks/Instructions/Exercises/LA-02-Explore-data.html
 # MAGIC
 # MAGIC Read more about dataframes: https://learn.microsoft.com/en-us/azure/databricks/getting-started/dataframes#language-Python
 # MAGIC
