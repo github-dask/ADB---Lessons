@@ -17,21 +17,95 @@
 
 # DBTITLE 1,Shell commands to download data files to DBFS path
 # MAGIC %sh
-# MAGIC rm -r /dbfs/delta_lab
-# MAGIC mkdir /dbfs/delta_lab
-# MAGIC wget -O /dbfs/delta_lab/products.csv https://raw.githubusercontent.com/MicrosoftLearning/mslearn-databricks/main/data/products.csv
+# MAGIC rm -r /dbfs/delta_lab_download
+# MAGIC mkdir /dbfs/delta_lab_download
+# MAGIC wget -O /dbfs/delta_lab_download/products.csv https://raw.githubusercontent.com/MicrosoftLearning/mslearn-databricks/main/data/products.csv
 
 # COMMAND ----------
 
 # DBTITLE 1,load the data from the files into DataFrame without schema
-df = spark.read.load('/delta_lab/products.csv', format='csv', header=True)
+df = spark.read.load('/delta_lab_download/products.csv', format='csv', header=True)
 display(df.limit(10))
 
 # COMMAND ----------
 
-# DBTITLE 1,Load the file data into a delta table
+# DBTITLE 1,Load the file data into a delta table with Python
 delta_table_path = "/delta/products-delta"
 df.write.format("delta").save(delta_table_path)
+
+# COMMAND ----------
+
+# DBTITLE 1,Creating Delta table with Schema using SQL
+# MAGIC %sql
+# MAGIC -- Create a Delta table using Spark SQL, but i dontot know how to add to dataframe, so _sqldf got created
+# MAGIC CREATE OR REPLACE TABLE person_data (
+# MAGIC     id INT,
+# MAGIC     name STRING,
+# MAGIC     age INT
+# MAGIC )using DELTA;
+
+# COMMAND ----------
+
+# DBTITLE 1,Enforcing schema validation
+# MAGIC %sql
+# MAGIC --This code wont execute. I neeed to find out why
+# MAGIC INSERT INTO 'products-delta' Values (1,1,1)
+
+# COMMAND ----------
+
+# DBTITLE 1,Manually insert data into Delta table
+# MAGIC %sql
+# MAGIC -- Insert valid data
+# MAGIC INSERT INTO person_data (id, name, age)
+# MAGIC VALUES
+# MAGIC (1, 'Alice', 30),
+# MAGIC (2, 'Bob', 25);
+
+# COMMAND ----------
+
+# DBTITLE 1,Modification of Delta data
+# MAGIC %sql
+# MAGIC -- Attempt to insert data with an invalid schema (missing 'age' field)
+# MAGIC INSERT INTO person_data (id, name)
+# MAGIC VALUES
+# MAGIC (3, 'Charlie');
+# MAGIC
+# MAGIC -- Update age of Bob
+# MAGIC UPDATE person_data
+# MAGIC SET age = 26
+# MAGIC WHERE name = 'Bob';
+# MAGIC
+# MAGIC -- Insert a new record
+# MAGIC UPDATE person_data
+# MAGIC SET age = 28
+# MAGIC WHERE id = 3;
+# MAGIC
+# MAGIC select * from person_data;
+
+# COMMAND ----------
+
+# DBTITLE 1,Handle schema mismatches
+# MAGIC %sql
+# MAGIC -- Define a temporary view with new data
+# MAGIC CREATE OR REPLACE TEMP VIEW my_new_delta_table_schema AS
+# MAGIC SELECT * FROM VALUES
+# MAGIC (3, 'Charlie', 28),
+# MAGIC (4, 'Diana', 35)
+# MAGIC AS my_new_delta_table_schema(id, name, age);
+# MAGIC
+# MAGIC -- Use MERGE to upsert data
+# MAGIC MERGE INTO person_data AS target
+# MAGIC USING my_new_delta_table_schema AS source
+# MAGIC ON target.id = source.id
+# MAGIC WHEN MATCHED THEN
+# MAGIC   UPDATE SET
+# MAGIC     target.name = source.name,
+# MAGIC     target.age = source.age
+# MAGIC WHEN NOT MATCHED THEN
+# MAGIC   INSERT (id, name, age)
+# MAGIC   VALUES (cast(source.id as INT), cast (source.name as STRING), cast(source.age as INT));
+# MAGIC   
+# MAGIC select * from person_data;
 
 # COMMAND ----------
 
@@ -67,14 +141,41 @@ new_df.show(10)
 
 # COMMAND ----------
 
+# DBTITLE 1,Query table history with SQL
+# MAGIC %sql
+# MAGIC -- View table history
+# MAGIC DESCRIBE HISTORY person_data;
+
+# COMMAND ----------
+
+# DBTITLE 1,Query table history with Python the last 10 changes from log
+deltaTable.history(10).show(10, False, True)
+
+# COMMAND ----------
+
+# DBTITLE 1,TimeTravel with SQL
+# MAGIC %sql
+# MAGIC -- Query data as of version 3
+# MAGIC SELECT * FROM person_data VERSION AS OF 3;
+# MAGIC
+# MAGIC -- Query data as of a specific timestamp
+# MAGIC SELECT * FROM person_data TIMESTAMP AS OF '2024-08-15T16:50:04.000+00:00';
+
+# COMMAND ----------
+
 # DBTITLE 1,original version of the product data
 new_df = spark.read.format("delta").option("versionAsOf", 0).load(delta_table_path)
 new_df.show(10)
 
 # COMMAND ----------
 
-# DBTITLE 1,the last 10 changes from log
-deltaTable.history(10).show(10, False, True)
+# DBTITLE 1,Revert to a previous version with SQL
+# MAGIC %sql
+# MAGIC -- Restore the table to version 0
+# MAGIC RESTORE TABLE person_data TO VERSION AS OF 0;
+# MAGIC
+# MAGIC -- Restore the table to a specific timestamp
+# MAGIC --RESTORE TABLE person_data TO TIMESTAMP AS OF '2024-07-22T10:00:00Z';
 
 # COMMAND ----------
 
